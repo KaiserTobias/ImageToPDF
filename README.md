@@ -1,10 +1,11 @@
 # ImageToPDF
 
-Bilder (JPG, PNG, GIF, …) in ein PDF umwandeln – ohne Python und ohne Installation.
+Bilder in PDF umwandeln. Es gibt drei Wege:
 
 | Ordner | Variante | Benutzung |
 |---|---|---|
-| [`variante1-html`](variante1-html) | Einzelne HTML-Datei | `index.html` im Browser öffnen. Bilder hineinziehen/auswählen/einfügen (Strg+V), per Drag & Drop oder ↑/↓ sortieren, drehen, Seitengröße (A4/Letter/Bildgröße), Ausrichtung, Rand, JPEG-Qualität und Dateiname wählen, „PDF erstellen“. Alles läuft lokal im Browser. |
-| [`variante3-exe`](variante3-exe) | Go-Programm (eine Datei, keine Abhängigkeiten) | `./build.sh` baut Programme für Windows, macOS und Linux nach `fertig/` (fertige Programme liegen bereits dort). Aufruf: `imagetopdf -o out.pdf a.jpg b.png` oder Bilder auf die `.exe` ziehen. |
+| [`src/`](src), `run_imagetopdf.py`, `build.bat` | **Python-Desktop-Anwendung** (Windows) | Siehe [`ANLEITUNG.md`](ANLEITUNG.md) und [`ANFORDERUNGEN_ImageToPDF.md`](ANFORDERUNGEN_ImageToPDF.md). |
+| [`variante1-html`](variante1-html) | **Webseite als einzelne HTML-Datei** (Nachbau der Python-Anwendung) | `index.html` im Browser öffnen, Ordner wählen, Bilder prüfen, konvertieren. Alles läuft lokal im Browser. |
+| [`variante3-exe`](variante3-exe) | **Go-Kommandozeilenprogramm** (eine Datei, keine Abhängigkeiten) | Fertige Programme in `fertig/`. Aufruf: `imagetopdf -o out.pdf a.jpg b.png` oder Bilder auf die `.exe` ziehen. Baut mit `./build.sh`. |
 
-Optionen der Go-Variante: `-o datei.pdf` (Ausgabe), `-fit` (Seitengröße = Bildgröße statt A4).
+Optionen der Go-Variante: `-o datei.pdf` (Ausgabe), `-fit` (Seitengröße = Bildgröße statt A4). Die Go-Variante erzeugt ein gemeinsames PDF aus allen Bildern.
