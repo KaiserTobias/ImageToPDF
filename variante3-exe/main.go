@@ -2,6 +2,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"compress/zlib"
 	"flag"
@@ -14,6 +15,7 @@ import (
 	_ "image/png"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 const (
@@ -119,7 +121,42 @@ func writePDF(out string, imgs []*pdfImage, fit bool) error {
 	return os.WriteFile(out, buf.Bytes(), 0o644)
 }
 
+// pause hält das Fenster offen (wichtig bei Doppelklick/Drag & Drop unter Windows).
+func pause() {
+	fmt.Print("\nEnter drücken zum Beenden …")
+	bufio.NewReader(os.Stdin).ReadString('\n')
+}
+
+// splitPaths zerlegt eine Eingabezeile in Pfade; Pfade mit Leerzeichen stehen in "…".
+func splitPaths(line string) []string {
+	var out []string
+	var cur strings.Builder
+	quoted := false
+	flush := func() {
+		if cur.Len() > 0 {
+			out = append(out, cur.String())
+			cur.Reset()
+		}
+	}
+	for _, r := range line {
+		switch {
+		case r == '"':
+			quoted = !quoted
+			if !quoted {
+				flush()
+			}
+		case (r == ' ' || r == '\t' || r == '\r' || r == '\n') && !quoted:
+			flush()
+		default:
+			cur.WriteRune(r)
+		}
+	}
+	flush()
+	return out
+}
+
 func main() {
+	interactive := false
 	outFlag := flag.String("o", "", "Ausgabedatei (Standard: <erstes Bild>.pdf)")
 	fit := flag.Bool("fit", false, "Seitengröße an Bild anpassen statt A4")
 	flag.Usage = func() {
@@ -128,27 +165,44 @@ func main() {
 		flag.PrintDefaults()
 	}
 	flag.Parse()
-	if flag.NArg() == 0 {
-		flag.Usage()
-		os.Exit(2)
+	files := flag.Args()
+	if len(files) == 0 { // Doppelklick: nach Bildern fragen
+		interactive = true
+		fmt.Println("ImageToPDF – Bilder in ein PDF umwandeln")
+		fmt.Println("Ziehe die Bilddateien in dieses Fenster und drücke Enter:")
+		line, _ := bufio.NewReader(os.Stdin).ReadString('\n')
+		files = splitPaths(line)
+		if len(files) == 0 {
+			fmt.Println("Keine Bilder angegeben.")
+			pause()
+			os.Exit(2)
+		}
+	}
+	fail := func(err error) {
+		fmt.Fprintln(os.Stderr, "Fehler:", err)
+		if interactive || *outFlag == "" {
+			pause()
+		}
+		os.Exit(1)
 	}
 	var imgs []*pdfImage
-	for _, p := range flag.Args() {
+	for _, p := range files {
 		im, err := load(p)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "Fehler:", err)
-			os.Exit(1)
+			fail(err)
 		}
 		imgs = append(imgs, im)
 	}
 	out := *outFlag
 	if out == "" {
-		first := flag.Arg(0)
+		first := files[0]
 		out = first[:len(first)-len(filepath.Ext(first))] + ".pdf"
 	}
 	if err := writePDF(out, imgs, *fit); err != nil {
-		fmt.Fprintln(os.Stderr, "Fehler:", err)
-		os.Exit(1)
+		fail(err)
 	}
 	fmt.Printf("%d Bild(er) → %s\n", len(imgs), out)
+	if interactive || *outFlag == "" {
+		pause()
+	}
 }
