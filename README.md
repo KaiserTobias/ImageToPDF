@@ -5,6 +5,6 @@ Bilder (JPG, PNG, GIF, …) in ein PDF umwandeln – ohne Python und ohne Instal
 | Ordner | Variante | Benutzung |
 |---|---|---|
 | [`variante1-html`](variante1-html) | Einzelne HTML-Datei | `index.html` im Browser öffnen, Bilder hineinziehen, Reihenfolge per Drag & Drop ändern, „PDF erstellen“. Alles läuft lokal im Browser. |
-| [`variante3-exe`](variante3-exe) | Go-Programm (eine Datei, keine Abhängigkeiten) | `./build.sh` baut Programme für Windows, macOS und Linux nach `dist/`. Aufruf: `imagetopdf -o out.pdf a.jpg b.png` oder Bilder auf die `.exe` ziehen. |
+| [`variante3-exe`](variante3-exe) | Go-Programm (eine Datei, keine Abhängigkeiten) | `./build.sh` baut Programme für Windows, macOS und Linux nach `fertig/` (fertige Programme liegen bereits dort). Aufruf: `imagetopdf -o out.pdf a.jpg b.png` oder Bilder auf die `.exe` ziehen. |
 
 Optionen der Go-Variante: `-o datei.pdf` (Ausgabe), `-fit` (Seitengröße = Bildgröße statt A4).
