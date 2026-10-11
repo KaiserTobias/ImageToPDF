@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ImageToPDF</title>
+<style>
+  :root { --bg:#f6f7f9; --fg:#1b1f24; --card:#fff; --accent:#2563eb; --border:#d0d7de; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#14171a; --fg:#e6e8ea; --card:#1e2226; --border:#3a4046; } }
+  body { font-family: system-ui, sans-serif; background:var(--bg); color:var(--fg); margin:0; padding:16px; }
+  main { max-width:760px; margin:0 auto; }
+  #drop { border:2px dashed var(--border); border-radius:12px; padding:32px 16px; text-align:center; cursor:pointer; background:var(--card); }
+  #drop.over { border-color:var(--accent); }
+  ul { list-style:none; padding:0; margin:16px 0; }
+  li { display:flex; align-items:center; gap:10px; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:6px; margin-bottom:6px; }
+  li.drag { opacity:.4; }
+  li img { width:56px; height:56px; object-fit:cover; border-radius:4px; }
+  li span { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  button, select { font:inherit; padding:8px 12px; border-radius:8px; border:1px solid var(--border); background:var(--card); color:var(--fg); cursor:pointer; }
+  button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  button:disabled { opacity:.5; cursor:default; }
+  .opts { display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-bottom:12px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>ImageToPDF</h1>
+  <div id="drop">Bilder hierher ziehen oder klicken zum Auswählen<br><small>Alles bleibt lokal in deinem Browser.</small></div>
+  <input id="file" type="file" accept="image/*" multiple hidden>
+  <ul id="list"></ul>
+  <div class="opts">
+    <label>Seite
+      <select id="size">
+        <option value="a4p">A4 Hochformat</option>
+        <option value="a4l">A4 Querformat</option>
+        <option value="fit">An Bild anpassen</option>
+      </select>
+    </label>
+    <button id="go" class="primary" disabled>PDF erstellen</button>
+  </div>
+</main>
+<script>
+const items = []; // {name, url, blob}
+const $ = id => document.getElementById(id);
+const drop = $('drop'), file = $('file'), list = $('list'), go = $('go');
+
+drop.onclick = () => file.click();
+file.onchange = () => { add(file.files); file.value = ''; };
+drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
+drop.ondragleave = () => drop.classList.remove('over');
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); add(e.dataTransfer.files); };
+
+function add(files) {
+  for (const f of files) if (f.type.startsWith('image/')) items.push({ name: f.name, blob: f, url: URL.createObjectURL(f) });
+  render();
+}
+
+let dragIdx = null;
+function render() {
+  list.innerHTML = '';
+  items.forEach((it, i) => {
+    const li = document.createElement('li');
+    li.draggable = true;
+    li.ondragstart = () => { dragIdx = i; li.classList.add('drag'); };
+    li.ondragend = () => li.classList.remove('drag');
+    li.ondragover = e => e.preventDefault();
+    li.ondrop = e => { e.preventDefault(); e.stopPropagation(); if (dragIdx === null) return; items.splice(i, 0, items.splice(dragIdx, 1)[0]); dragIdx = null; render(); };
+    li.innerHTML = `<img src="${it.url}" alt=""><span></span>`;
+    li.querySelector('span').textContent = `${i + 1}. ${it.name}`;
+    for (const [label, fn] of [['↑', () => move(i, -1)], ['↓', () => move(i, 1)], ['✕', () => { items.splice(i, 1); render(); }]]) {
+      const b = document.createElement('button'); b.textContent = label; b.onclick = fn; li.append(b);
+    }
+    list.append(li);
+  });
+  go.disabled = !items.length;
+}
+function move(i, d) { const j = i + d; if (j < 0 || j >= items.length) return; [items[i], items[j]] = [items[j], items[i]]; render(); }
+
+// Bild → JPEG-Bytes via Canvas (berücksichtigt EXIF-Drehung, Transparenz auf Weiß)
+async function toJpeg(it) {
+  const bmp = await createImageBitmap(it.blob, { imageOrientation: 'from-image' });
+  const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
+  const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(bmp, 0, 0);
+  const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.95));
+  return { w: c.width, h: c.height, data: new Uint8Array(await blob.arrayBuffer()) };
+}
+
+function buildPdf(imgs, mode) {
+  const enc = new TextEncoder(), parts = [], offsets = []; let len = 0;
+  const push = x => { const b = typeof x === 'string' ? enc.encode(x) : x; parts.push(b); len += b.length; };
+  const obj = (head, stream) => {
+    offsets.push(len); push(`${offsets.length} 0 obj\n${head}\n`);
+    if (stream) { push('stream\n'); push(stream); push('\nendstream\n'); }
+    push('endobj\n');
+  };
+  push('%PDF-1.4\n');
+  const n = imgs.length;
+  obj('<< /Type /Catalog /Pages 2 0 R >>');
+  obj(`<< /Type /Pages /Kids [${imgs.map((_, i) => `${3 + i * 3} 0 R`).join(' ')}] /Count ${n} >>`);
+  const M = 42.52;
+  imgs.forEach((im, i) => {
+    let pw = 595.28, ph = 841.89, dw, dh, x = 0, y = 0;
+    if (mode === 'a4l') [pw, ph] = [ph, pw];
+    if (mode === 'fit') { dw = im.w * 0.75; dh = im.h * 0.75; pw = dw; ph = dh; }
+    else {
+      const s = Math.min((pw - 2 * M) / im.w, (ph - 2 * M) / im.h);
+      dw = im.w * s; dh = im.h * s; x = (pw - dw) / 2; y = (ph - dh) / 2;
+    }
+    const id = 3 + i * 3;
+    obj(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pw.toFixed(2)} ${ph.toFixed(2)}] /Contents ${id + 1} 0 R /Resources << /XObject << /Im0 ${id + 2} 0 R >> >> >>`);
+    const c = `q ${dw.toFixed(2)} 0 0 ${dh.toFixed(2)} ${x.toFixed(2)} ${y.toFixed(2)} cm /Im0 Do Q`;
+    obj(`<< /Length ${c.length} >>`, enc.encode(c));
+    obj(`<< /Type /XObject /Subtype /Image /Width ${im.w} /Height ${im.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${im.data.length} >>`, im.data);
+  });
+  const xref = len;
+  push(`xref\n0 ${offsets.length + 1}\n0000000000 65535 f \n`);
+  offsets.forEach(o => push(String(o).padStart(10, '0') + ' 00000 n \n'));
+  push(`trailer\n<< /Size ${offsets.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`);
+  return new Blob(parts, { type: 'application/pdf' });
+}
+
+go.onclick = async () => {
+  go.disabled = true; go.textContent = 'Erstelle …';
+  try {
+    const imgs = [];
+    for (const it of items) imgs.push(await toJpeg(it));
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(buildPdf(imgs, $('size').value));
+    a.download = 'bilder.pdf'; a.click();
+  } catch (e) { alert('Fehler: ' + e.message); }
+  go.textContent = 'PDF erstellen'; go.disabled = !items.length;
+};
+</script>
+</body>
+</html>
