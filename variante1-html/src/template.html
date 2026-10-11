@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ImageToPDF</title>
+<style>
+/*{{CSS}}*/
+</style>
+</head>
+<body>
+<div id="app">
+  <section id="top" class="card">
+    <span>Quellordner</span>
+    <div id="srcfield" class="field empty">Ordner hierher ziehen oder „Durchsuchen“ wählen</div>
+    <button id="btn-src" class="btn" style="width:130px">Durchsuchen…</button>
+
+    <span>Bildformate</span>
+    <div id="formats" class="formats"></div>
+    <label class="switch"><input id="dark" type="checkbox"> Dunkel</label>
+
+    <label class="chk full"><input type="radio" name="tmode" value="beside" checked> PDF neben dem Bild ablegen</label>
+    <label class="chk full"><input type="radio" name="tmode" value="dir"> In Zielordner ablegen (Unterordnerstruktur wird nachgebaut)</label>
+
+    <button id="btn-scan" class="btn" style="width:170px">Ordner durchsuchen</button>
+    <div id="dstfield" class="field empty"></div>
+    <button id="btn-dst" class="btn" style="width:130px">Durchsuchen…</button>
+    <div id="mode-note" class="full"></div>
+  </section>
+
+  <section id="tablecard" class="card">
+    <div id="tablewrap" tabindex="0">
+      <table>
+        <thead><tr>
+          <th style="width:34px"></th><th style="width:90px">Vorschau</th><th>Name</th><th>Unterordner</th><th>Format</th>
+          <th>Auflösung</th><th>Größe</th><th>Seitenformat</th><th>Ausrichtung</th><th>Anpassung</th><th>Bei Konflikt</th><th>Zielpfad</th><th>Status</th>
+        </tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <div id="empty">Noch keine Bilder.<br>Quellordner wählen (oder hierher ziehen) und „Ordner durchsuchen“ klicken.</div>
+    </div>
+    <div id="bar">
+      <b>Für markierte Zeilen:</b>
+      <select id="bar-page"></select><select id="bar-orient"></select><select id="bar-fit"></select><select id="bar-conflict"></select>
+      <button id="btn-apply" class="btn">Anwenden</button>
+      <button id="btn-all" class="btn gray">Alle markieren</button>
+      <button id="btn-on" class="btn gray">Aktivieren</button>
+      <button id="btn-off" class="btn gray">Deaktivieren</button>
+      <button id="btn-save" class="btn green">Als Standard speichern</button>
+    </div>
+    <div class="hint">Doppelklick auf eine Zelle schaltet den Wert dieser Zeile weiter. Strg+A markiert alle, Leertaste (de)aktiviert markierte Zeilen.</div>
+  </section>
+
+  <section id="bottom" class="card">
+    <div id="pv"><b>Vorschau</b><canvas id="pvc" width="220" height="220"></canvas></div>
+    <div id="info">
+      <div id="pinfo">Zeile markieren, um die Seite zu sehen.</div>
+      <div id="pwarn"></div>
+      <div id="pnotes"></div>
+    </div>
+    <div id="run">
+      <button id="btn-conv" class="btn big">Konvertieren</button>
+      <button id="btn-cancel" class="btn gray" disabled>Abbrechen</button>
+      <progress id="prog" value="0" max="1"></progress>
+      <div id="status">Bereit.</div>
+    </div>
+  </section>
+</div>
+<input id="fin" type="file" webkitdirectory multiple hidden>
+<div id="dropveil">Ordner hier ablegen</div>
+<dialog id="dlg"><h2 id="dlg-title"></h2><pre id="dlg-text"></pre><button id="dlg-ok" class="btn">OK</button></dialog>
+
+<script>/*{{PAKO}}*/</script>
+<script>/*{{UTIF}}*/</script>
+<script>
+/*{{APP}}*/
+</script>
+</body>
+</html>

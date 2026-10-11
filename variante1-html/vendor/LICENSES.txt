@@ -1,0 +1,4 @@
+Eingebettete Bibliotheken (unverändert):
+
+UTIF.js 3.1.0 – TIFF-Decoder, MIT-Lizenz, (c) Photopea (https://github.com/photopea/UTIF.js)
+pako 2.1.0 (inflate) – MIT-Lizenz, (c) Vitaly Puzrin, Andrei Tuputcyn (https://github.com/nodeca/pako)
