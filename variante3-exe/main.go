@@ -16,7 +16,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
+
+const version = "v3"
 
 const (
 	a4W    = 595.28 // Punkte
@@ -124,7 +127,10 @@ func writePDF(out string, imgs []*pdfImage, fit bool) error {
 // pause hält das Fenster offen (wichtig bei Doppelklick/Drag & Drop unter Windows).
 func pause() {
 	fmt.Print("\nEnter drücken zum Beenden …")
-	bufio.NewReader(os.Stdin).ReadString('\n')
+	if _, err := bufio.NewReader(os.Stdin).ReadString('\n'); err != nil {
+		// Eingabe nicht verfügbar: Fenster trotzdem lange genug offen halten.
+		time.Sleep(60 * time.Second)
+	}
 }
 
 // splitPaths zerlegt eine Eingabezeile in Pfade; Pfade mit Leerzeichen stehen in "…".
@@ -156,6 +162,13 @@ func splitPaths(line string) []string {
 }
 
 func main() {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Fprintln(os.Stderr, "Unerwarteter Fehler:", r)
+			pause()
+			os.Exit(1)
+		}
+	}()
 	interactive := false
 	outFlag := flag.String("o", "", "Ausgabedatei (Standard: <erstes Bild>.pdf)")
 	fit := flag.Bool("fit", false, "Seitengröße an Bild anpassen statt A4")
@@ -168,7 +181,7 @@ func main() {
 	files := flag.Args()
 	if len(files) == 0 { // Doppelklick: nach Bildern fragen
 		interactive = true
-		fmt.Println("ImageToPDF – Bilder in ein PDF umwandeln")
+		fmt.Println("ImageToPDF " + version + " – Bilder in ein PDF umwandeln")
 		fmt.Println("Ziehe die Bilddateien in dieses Fenster und drücke Enter:")
 		line, _ := bufio.NewReader(os.Stdin).ReadString('\n')
 		files = splitPaths(line)
