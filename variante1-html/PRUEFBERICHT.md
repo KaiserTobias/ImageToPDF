@@ -11,7 +11,7 @@ Die kritischen Punkte haben eine gemeinsame Ursache (die Planung wird vor dem La
 ## 2. Wie geprüft wurde
 
 - 8 unabhängige Prüfperspektiven (Datensicherheit, Datenschutz, Robustheit, Injection, Browser-Umgebung, PDF-Treue gegenüber dem Python-Vorbild, Logikfehler, Anwendersicht), jede mit echten Tests in Chromium (Playwright, headless) gegen ein Sandbox-Dateisystem, sowie Vergleichsläufe mit der Python-Anwendung aus `src/imagetopdf`.
-- 65 Rohbefunde → 62 nach Zusammenlegung → jeder Befund von zwei weiteren Prüfern gegengeprüft (ein Skeptiker, der widerlegen sollte, und ein Reproduzierer, der die Folge selbst beobachten musste). Ergebnis: 53 bestätigt, 8 noch in Nachprüfung (Abschnitt 7), 1 unsicher, 0 verworfen. Ein Vollständigkeitskritiker fand drei weitere belegte Befunde und benennt, was nicht prüfbar war (Abschnitt 9).
+- 65 Rohbefunde → 62 nach Zusammenlegung → jeder Befund von zwei weiteren Prüfern gegengeprüft (ein Skeptiker, der widerlegen sollte, und ein Reproduzierer, der die Folge selbst beobachten musste). Ergebnis: 61 bestätigt, 1 unsicher, 0 verworfen (8 Befunde brauchten wegen eines Kontingentlimits einen zweiten Durchlauf, alle 8 wurden dabei bestätigt). Ein Vollständigkeitskritiker fand drei weitere belegte Befunde und benennt, was nicht prüfbar war (Abschnitt 9).
 - Nicht prüfbar in dieser Umgebung: echtes Windows mit Chrome/Edge und echtem Ordnerdialog, echtes Firefox/Safari (nur simuliert), Netzlaufwerke, OneDrive, USB. Diese Punkte stehen in Abschnitt 9 mit konkreter Prüfanleitung.
 
 Alle Nachweise (Skripte, Logs, Screenshots, erzeugte PDFs) liegen unter `scratchpad/audit/` der Sitzung; die wichtigsten Dateinamen sind je Befund genannt.
@@ -86,7 +86,15 @@ Alle drei Punkte betreffen nur **PDF-Dateien** (eigene oder fremde), nie Bilder.
 
 N1 Datei, die nur „.png“ heißt, wird als namenlose, versteckte „.pdf“ geschrieben (Vorbild ignoriert sie). · N2 JPEG-Metadaten (GPS, Seriennummer, Autor) wandern 1:1 ins PDF (Vorbild entfernt sie; relevant beim Weitergeben). · N3 1 500 Bilder: Vorschauphase 133 s, jede Bedienaktion 1–2 s, weil `render()` alle Zeilen samt Data-URLs neu aufbaut. · N4 `inspectFile` liest TIFF und GIF vollständig in den Speicher (1,1 GB Datei → 2,4 GB RSS). · N5 Nicht dekodierbare Bilder stehen nach der Suche als „✓“, Fehler erst beim Konvertieren, Meldung englisch. · N6 Bidi-Steuerzeichen (U+202E) im Dateinamen drehen Name/Zielpfad/Status in der Anzeige um. · N7 Interne Meldung „Offset is outside the bounds of the DataView“ bei abgeschnittenen Dateien. · N8 Unterordner-Spalte ohne Breitenbegrenzung schiebt Status aus dem Sichtbereich. · N9 Firefox zeigt beim Ordnerwählen „N Dateien hochladen?“ – die App erklärt das nirgends (widerspricht „nichts wird hochgeladen“). · N10 CMYK-TIFF: letzter Pixel weiß. · N11 DPI-Randfälle (EXIF ohne Einheit, TIFF ohne Auflösung) weichen vom Vorbild ab → andere Seitengröße bei „Originalgröße“. · N12 Nach Klick auf ein Häkchen geht der Tastaturfokus verloren (Strg+A markiert den Seitentext).
 
-**Noch in Nachprüfung (zweiter Durchlauf, Ergebnis wird ergänzt):** kein `beforeunload`-Schutz (F5/Tab schließen im ZIP-Modus verwirft alles ohne Warnung); Ordnerdialog abgebrochen/Recht verweigert ohne jede Rückmeldung; Abschlussdialog meldet „Fehler: 0“, obwohl rote Zeilen (nicht lesbar, zu groß) gar nicht konvertiert wurden; Vorschautext bei „Originalgröße“ ohne mm-Angabe; Leertaste auf fokussierter Checkbox schaltet andere Zeilen; Drop einer Einzeldatei ohne Rückmeldung; Formatauswahl geht beim Neuladen verloren.
+**Im zweiten Durchlauf bestätigt (alle 8):**
+- **M20 (mittel)** Kein `beforeunload`-Schutz: F5 oder Tab schließen während der Konvertierung verwirft im ZIP-Modus alle PDFs ohne Warnung; im Ordner-Modus bleiben die bereits geschriebenen PDFs erhalten, aber Zusammenfassung und Tabelle sind weg. (`app.js:836`)
+- **M21 (mittel)** Ordnerdialog abgebrochen oder Chromes Rechte-Abfrage mit „Blockieren“ beantwortet: keinerlei Rückmeldung, das Quellfeld bleibt leer. Mit echtem Chromium-Dialog nachgestellt. (`app.js:756`)
+- **N13** Abschlussdialog meldet „Fehler: 0“, obwohl nicht lesbare oder zu große Zeilen gar nicht konvertiert wurden; Statuszeile zeigt nur „Fertig.“ statt der Zusammenfassung wie im Vorbild. (`app.js:865`)
+- **N14** Vorschautext bei „Originalgröße“ nennt weder Seitenmaß in mm noch Dateinamen (Vorbild zeigt beides). (`app.js:718`)
+- **N15** Leertaste auf einer per Tab fokussierten Zeilen-Checkbox schaltet nicht diese Zeile, sondern die markierten; die Tabelle hat keinen sichtbaren Fokusrahmen. (`app.js:668`, `style.css:42`)
+- **N16** Drop einer einzelnen Bilddatei: Overlay „Ordner hier ablegen“ erscheint, danach keinerlei Rückmeldung. (`app.js:886`)
+- **N17** Formatauswahl (z. B. GIF abgehakt) geht beim Neuladen verloren, wenn nicht „Als Standard speichern“ gedrückt wurde (Vorbild speichert beim Schließen). (`app.js:909`)
+- Die Nicht-Abbrechbarkeit der Suche wurde ein zweites Mal bestätigt (siehe M15).
 
 **Unsicher (nicht abschließend geklärt):** Ob Firefox beim ZIP-Download Metadaten (Hash, Dateiname) an den Safe-Browsing-Dienst sendet. Für Chrome/Chromium ist belegt, dass für dieses ZIP **kein** Ping gesendet wird.
 
@@ -96,9 +104,9 @@ N1 Datei, die nur „.png“ heißt, wird als namenlose, versteckte „.pdf“ g
 
 **Stufe 2 (Pflicht, falsches PDF ohne Hinweis):** H1–H5 – IFD-Schleifenschutz; Kantenlänge/Fläche je Seite gegen Browsergrenzen prüfen; TIFF-Tags prüfen und nicht unterstützte Varianten als „Nicht lesbar“ ablehnen (Kompression, Photometric, Planar, SamplesPerPixel, Streifen innerhalb der Datei); nach dem Flatten einen Pixel gegenprüfen, damit nie Nullbytes als Bild eingebettet werden; Bildmaße beim Konvertieren neu lesen; Ordnerfehler je Unterordner abfangen und am Ende nennen. Für den JPEG-in-TIFF-Farbfehler entweder den Dekoder korrigieren oder die Variante ablehnen.
 
-**Stufe 3 (vor Weitergabe an Kollegen):** H6 (ZIP-Grenze prüfen und sauber abbrechen, Download je Datei oder in Teilen), M4 („Überschreiben“ nicht als Standard speichern), M5, M7–M11, M15, M16, M18, N9, sowie die Punkte aus der Nachprüfung; dazu README/Anleitung mit Mindest-Browserversionen, Erklärung der Chrome-Dialoge und der Firefox-„Hochladen“-Rückfrage.
+**Stufe 3 (vor Weitergabe an Kollegen):** H6 (ZIP-Grenze prüfen und sauber abbrechen, Download je Datei oder in Teilen), M4 („Überschreiben“ nicht als Standard speichern), M5, M7–M11, M15, M16, M18, M20, M21, N9, N13, N16; dazu README/Anleitung mit Mindest-Browserversionen, Erklärung der Chrome-Dialoge und der Firefox-„Hochladen“-Rückfrage.
 
-**Stufe 4 (optional):** M6/N3/N4 (Web Worker, Streaming), M13, M17, N1, N2, N5–N8, N10–N12.
+**Stufe 4 (optional):** M6/N3/N4 (Web Worker, Streaming), M13, M17, N1, N2, N5–N8, N10–N12, N14, N15, N17.
 
 ## 9. Was nicht geprüft werden konnte – bitte selbst prüfen
 
